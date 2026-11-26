@@ -1,0 +1,9 @@
+.venv
+.git
+__pycache__
+client_secret.json
+token.json
+audit_results
+audit_output*
+*.xlsx
+*.log

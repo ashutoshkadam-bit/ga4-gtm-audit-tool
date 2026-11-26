@@ -69,7 +69,7 @@ Your login is stored only on your computer (in your user folder, `.ga-gtm-audit`
 
 ## Deploying for a team
 
-This version runs on each person's computer, because Google's desktop sign-in needs a local browser. To host it on one server so nobody installs anything, change the sign-in in gga/auth.py to a web OAuth flow (see the last section of SETUP_ADMIN.md). gga/core.py and gga/report.py need no changes.
+By default the tool runs on each person's computer. It also has a **web mode** that lets you host it on one server so teammates only open a link and sign in with Google. See **DEPLOY.md** (Cloud Run, Streamlit Community Cloud, Docker).
 
 ## Scripts
 

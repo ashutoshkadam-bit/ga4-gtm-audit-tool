@@ -60,9 +60,8 @@ All teammates share your project's Google API quota. Normal use (a few audits a 
 limits. If many people run full-estate audits at once you may see rate-limit ERROR rows. Re-run those
 accounts a few minutes later.
 
-## Move to a hosted web version later
+## Host it as a website instead
 
-This version runs on each person's computer because Google's desktop sign-in needs a local browser.
-To host it on one internal server so nobody installs anything, create a **Web application** OAuth client
-with your server's address as the redirect URI and replace `sign_in()` in `gga/auth.py` with a web
-redirect flow. The audit engine (`gga/core.py`) and reports (`gga/report.py`) need no changes.
+The tool also has a web mode, so nobody has to install anything. It needs a **Web application** OAuth client
+instead of the Desktop one, and a few settings. See **DEPLOY.md** for Cloud Run, Streamlit Community Cloud
+and Docker instructions.

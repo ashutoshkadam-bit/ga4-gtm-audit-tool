@@ -1,0 +1,10 @@
+[server]
+headless = true
+# Behind a hosting proxy (Cloud Run, Streamlit Cloud) these two are handled by the platform.
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#c0392b"

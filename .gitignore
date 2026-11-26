@@ -14,3 +14,4 @@ scope_tables/
 *.xlsx
 *.log
 all_mids.json
+.streamlit/secrets.toml

@@ -1,0 +1,107 @@
+# Deploying the audit tool as a website
+
+The tool has two modes. Without any web settings it runs on a person's own computer (see README.md).
+When you set `GGA_REDIRECT_URI` it switches to **web mode**: people open your site's address and click
+**Sign in with Google**. Nothing to install for them.
+
+In web mode each person's Google login is held only in server memory for that browser session. It is never
+written to disk, and Sign out or closing the tab drops it. Each person still sees only what their own Google
+account can open.
+
+## 1. Create a Web OAuth client (once)
+
+In Google Cloud Console, in the project where you enabled the three APIs (Analytics Admin, Analytics Data,
+Tag Manager):
+
+1. **APIs & Services → Credentials → Create credentials → OAuth client ID.**
+2. Application type: **Web application**. Name: `audit-tool-web`.
+3. **Authorized redirect URIs:** add your site's exact public address, for example
+   `https://audit.example.com` (no path, no trailing slash). You get the address in step 2 below, so you can
+   come back and add it after the first deploy.
+4. Copy the **Client ID** and **Client secret**.
+
+On **Google Auth Platform → Audience**, choose **Internal** if the project belongs to your Workspace
+organization. Otherwise add every user as a **Test user**. See SETUP_ADMIN.md.
+
+## 2. Settings the site needs
+
+| Setting | Required | Meaning |
+| --- | --- | --- |
+| `GGA_CLIENT_ID` | yes | From the Web OAuth client |
+| `GGA_CLIENT_SECRET` | yes | From the Web OAuth client. Keep it secret. |
+| `GGA_REDIRECT_URI` | yes | Your site's public address, exactly as added in step 1 |
+| `GGA_ALLOWED_DOMAIN` | recommended | Only this Google Workspace domain may sign in, for example `example.com` |
+
+Set them as environment variables (or, on Streamlit Community Cloud, as secrets). **Never commit them to git.**
+This repository is public.
+
+## 3. Pick a host
+
+### A. Google Cloud Run (recommended)
+
+From the repository folder, with the Google Cloud CLI signed in and the project selected:
+
+```
+gcloud run deploy audit-tool --source . --region asia-south1 --allow-unauthenticated ^
+  --session-affinity --timeout 3600 --memory 1Gi ^
+  --set-env-vars GGA_ALLOWED_DOMAIN=example.com
+```
+
+1. The command prints the service URL (for example `https://audit-tool-abc123-el.a.run.app`).
+2. Add that URL as an **Authorized redirect URI** on the Web OAuth client (step 1).
+3. Set the three remaining settings. Put the client secret in Secret Manager rather than a plain variable:
+
+```
+gcloud run services update audit-tool --region asia-south1 ^
+  --update-env-vars GGA_CLIENT_ID=YOUR_CLIENT_ID,GGA_REDIRECT_URI=https://YOUR_SERVICE_URL ^
+  --update-secrets GGA_CLIENT_SECRET=audit-client-secret:latest
+```
+
+`--allow-unauthenticated` only means anyone can reach the sign-in page. Nobody sees any data without a
+Google login, and `GGA_ALLOWED_DOMAIN` limits who can sign in. A long audit (250 items) takes 10 to 25 minutes,
+so keep `--timeout 3600`.
+
+### B. Streamlit Community Cloud
+
+1. Go to https://share.streamlit.io, sign in with GitHub and create an app from this repository. Main file: `app.py`.
+2. In **Advanced settings → Secrets** paste:
+
+```
+GGA_CLIENT_ID = "..."
+GGA_CLIENT_SECRET = "..."
+GGA_REDIRECT_URI = "https://YOUR-APP.streamlit.app"
+GGA_ALLOWED_DOMAIN = "example.com"
+```
+
+3. Add `https://YOUR-APP.streamlit.app` as an Authorized redirect URI on the OAuth client.
+
+Community Cloud apps are public by default and may sleep when idle, so set `GGA_ALLOWED_DOMAIN`.
+
+### C. Any Docker host
+
+```
+docker build -t audit-tool .
+docker run -p 8080:8080 -e GGA_CLIENT_ID=... -e GGA_CLIENT_SECRET=... ^
+  -e GGA_REDIRECT_URI=https://your.address -e GGA_ALLOWED_DOMAIN=example.com audit-tool
+```
+
+Serve it over **https** (Google requires it for any address except localhost).
+
+## Test web mode on your computer first
+
+Add `http://localhost:8501` as a redirect URI on the Web client, then:
+
+```
+set GGA_CLIENT_ID=...
+set GGA_CLIENT_SECRET=...
+set GGA_REDIRECT_URI=http://localhost:8501
+.venv\Scripts\python -m streamlit run app.py
+```
+
+## Notes
+
+- Refreshing the page signs the person out (their login is only in memory). One click on **Sign in with
+  Google** brings them back, with no new consent screen.
+- Everyone shares the Google Cloud project's API quota. Ordinary use is far inside the limits.
+- Audit results exist only in the person's browser session. Downloads (Excel, HTML, CSV) are generated on request
+  and nothing is stored on the server.

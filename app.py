@@ -7,15 +7,20 @@ import streamlit as st
 
 from gga import auth, core, report
 
-st.set_page_config(page_title="GA4 & GTM Audit", page_icon="ðŸ”Ž", layout="wide")
+st.set_page_config(page_title="GA4 & GTM Audit", page_icon=":mag:", layout="wide")
 S = st.session_state
+WEB = auth.is_web()
 
 
-def sign_in_screen():
+def intro():
     st.title("GA4 & GTM Audit")
     st.write("Audit any of your Google Analytics 4 properties and Tag Manager containers in a few clicks. "
              "You sign in with **your own Google account**, so you only see and audit what you already have access to. "
              "The tool is read-only: it never changes anything in Analytics or Tag Manager.")
+
+
+def sign_in_screen_local():
+    intro()
     if not auth.client_secret_path():
         st.error("This copy of the tool has no `client_secret.json` yet. Ask the person who shared it with you, "
                  "or see SETUP_ADMIN.md.")
@@ -30,17 +35,46 @@ def sign_in_screen():
     st.caption("Your login stays on this computer, in your user folder. Use Sign out in the sidebar to remove it.")
 
 
-creds = auth.load_credentials()
-if not creds:
-    sign_in_screen()
-    st.stop()
+def sign_in_screen_web(error=""):
+    intro()
+    if error:
+        st.error(error)
+    if not auth.web_configured():
+        st.error("This server is missing its Google sign-in settings (GGA_CLIENT_ID, GGA_CLIENT_SECRET, "
+                 "GGA_REDIRECT_URI). See DEPLOY.md.")
+        return
+    st.link_button("Sign in with Google", auth.web_login_url(), type="primary")
+    st.caption("Your Google login is kept only in this browser session on the server and is dropped when you "
+               "sign out or close the tab. Nothing is saved to disk.")
+
+
+if WEB:
+    creds = S.get("creds")
+    if not creds and "code" in st.query_params:  # Google just sent the user back with a sign-in code
+        try:
+            S.creds = creds = auth.web_finish(st.query_params["code"], st.query_params.get("state", ""))
+            st.query_params.clear()
+            st.rerun()
+        except Exception as e:  # noqa: BLE001
+            st.query_params.clear()
+            sign_in_screen_web(f"Sign-in did not complete: {e}")
+            st.stop()
+    if not creds:
+        sign_in_screen_web()
+        st.stop()
+else:
+    creds = auth.load_credentials()
+    if not creds:
+        sign_in_screen_local()
+        st.stop()
 
 if "email" not in S:
     S.email = auth.user_email(creds)
 with st.sidebar:
     st.markdown(f"**Signed in as**  \n{S.email or 'your Google account'}")
     if st.button("Sign out"):
-        auth.sign_out()
+        if not WEB:
+            auth.sign_out()
         S.clear()
         st.rerun()
     st.markdown("---")
