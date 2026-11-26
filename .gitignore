@@ -1,0 +1,16 @@
+# secrets and personal logins
+client_secret.json
+token.json
+*.json.bak
+# local environment
+.venv/
+__pycache__/
+*.pyc
+# audit output can contain client data
+audit_results/
+audit_output*/
+tool_test/
+scope_tables/
+*.xlsx
+*.log
+all_mids.json
