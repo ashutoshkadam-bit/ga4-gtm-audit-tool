@@ -7,6 +7,8 @@ import time
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from . import log
+
 GID = re.compile(r"^G-[A-Z0-9]{6,}$")
 GID_ANY = re.compile(r"\bG-[A-Z0-9]{6,}\b")
 
@@ -299,6 +301,7 @@ def run_audit(auditor, ga4_props, gtm_containers, known_ids=None, progress=None,
         try:
             f, inv = (auditor.audit_ga4_property(item) if kind == "GA4" else auditor.audit_gtm_container(item))
         except Exception as e:  # noqa: BLE001
+            log.exception("audit_item_failed", e, kind=kind)
             f = [dict(scope=kind, account=item["account"], entity=label, entity_id="", check="Audit",
                       status="ERROR", detail=short_err(e))]
             inv = None

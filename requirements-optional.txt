@@ -1,0 +1,3 @@
+# Optional extras. Install them yourself if you want them.
+# Error reporting to Sentry: also set the SENTRY_DSN environment variable.
+sentry-sdk>=2.0

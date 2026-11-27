@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from gga import auth, knowledge, pageanalysis, pagecapture, report, site, techdb, ui
+from gga import auth, knowledge, log, pageanalysis, pagecapture, report, site, techdb, ui
 
 S = st.session_state
 WEB = auth.is_web()
@@ -62,6 +62,8 @@ with tab_run:
                                               progress=lambda m: stat.write(m))
                     an = pageanalysis.analyze(cap)
                     runs.append(dict(cap=cap, an=an, findings=pageanalysis.to_findings(cap, an)))
+                    log.event("page_audit", host=an["page_host"], requests=len(cap["requests"]), seconds=cap.get("seconds"),
+                              user=log.who(S.get("email", "")))
                     stat.update(label=f"Done: {u}", state="complete")
                 except site.BlockedAddress as e:
                     skipped.append((u, str(e)))
@@ -76,6 +78,7 @@ with tab_run:
                         stat.update(label=f"Could not check {u}", state="complete")
                         stat.write("The page could not be read. Check the address and try again, or use the Chrome extension.")
                 except Exception as e:  # noqa: BLE001
+                    log.exception("page_audit_failed", e, host=(u.split("//")[-1].split("/")[0])[:80])
                     stat.update(label=f"Could not complete {u}", state="complete")
                     stat.write("Something unexpected stopped this audit. Your other results are not affected. "
                                "Try again, or use the Chrome extension for this page.")

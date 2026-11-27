@@ -21,7 +21,6 @@ import hashlib
 import json
 import os
 import secrets
-import time
 from pathlib import Path
 
 import requests
@@ -29,6 +28,8 @@ from cryptography.fernet import Fernet, InvalidToken
 from google.auth.transport.requests import AuthorizedSession, Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow, InstalledAppFlow
+
+from . import log
 
 SCOPES = [
     "https://www.googleapis.com/auth/analytics.readonly",
@@ -204,6 +205,7 @@ def web_login_url(own_client=None):
 def _domain_ok(email):
     domain = _cfg("GGA_ALLOWED_DOMAIN").strip().lower().lstrip("@")
     if domain and not (email or "").lower().endswith("@" + domain):
+        log.warning("signin_rejected_domain", user=log.who(email))
         raise AuthError(f"This tool is limited to @{domain} accounts. You signed in as {email or 'an unknown account'}.")
 
 
@@ -211,6 +213,7 @@ def web_finish(code, state):
     """Exchanges the code Google sent back for credentials. Returns (creds, source). Raises AuthError with a readable message."""
     st = read_state(state or "")
     if st is None:
+        log.warning("signin_failed", reason="state expired or not started here")
         raise AuthError("The sign-in link expired or was not started here. Please click Sign in again.")
     own = st.get("c")
     client = own or shared_client()
@@ -222,11 +225,13 @@ def web_finish(code, state):
     except AuthError:
         raise
     except Exception as e:  # noqa: BLE001
+        log.exception("signin_failed", e, reason="code exchange")
         raise AuthError("Google did not accept the sign-in. Check that your OAuth client allows this redirect address and "
                         f"that your account is allowed to use it. ({str(e)[:100]})")
     creds = flow.credentials
     email = user_email(creds)
     _domain_ok(email)
+    log.event("signin", method="own client" if own else "shared", user=log.who(email))
     return creds, ("your own client" if own else "shared sign-in")
 
 

@@ -1,0 +1,3 @@
+# Tools for working on the project (tests and linting). Not needed to run or deploy the tool.
+pytest==9.2.0
+ruff==0.17.6

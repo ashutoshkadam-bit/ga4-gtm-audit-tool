@@ -1,5 +1,8 @@
 # GA4 & GTM Audit Tool
 
+[![CI](https://github.com/ashutoshkadam-bit/ga4-gtm-audit-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/ashutoshkadam-bit/ga4-gtm-audit-tool/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 Audit any of your Google Analytics 4 properties and Google Tag Manager containers in a few clicks.
 You sign in with **your own Google account**, so you only audit what you already have access to.
 The tool is **read-only**: it never changes anything in Analytics or Tag Manager.
@@ -118,6 +121,16 @@ consent behaviour. Addresses on private or internal networks are refused. Result
 .venv\Scripts\python cli.py --list
 .venv\Scripts\python cli.py --accounts "acme,globex" --out results
 ```
+
+## Development, tests and logging
+
+- `pytest` runs the test suite (about 100 tests, including real-browser tests against a local test page) and `node --test extension/tests`
+  tests the Chrome extension. GitHub Actions runs both, plus `ruff check .`, on every push. See `CONTRIBUTING.md`.
+- Dependencies are pinned in `requirements.txt` to tested versions. Dependabot proposes updates every week and CI checks them.
+- Every important event (sign-in, accounts loaded, audit and page audit runs, errors) is written to standard output as one JSON line, which
+  Cloud Run and Streamlit Cloud collect. People are identified only by a short one-way hash, and secrets are never logged.
+  Set `GGA_LOG_LEVEL` to change the detail. To also send errors to Sentry, `pip install -r requirements-optional.txt` and set `SENTRY_DSN`.
+- Licence: MIT (see `LICENSE`). Security reports: see `SECURITY.md`. Release notes: `CHANGELOG.md`.
 
 ## Troubleshooting
 

@@ -1,7 +1,7 @@
 """Profile and credentials: connect a Google account with the shared sign-in, your own OAuth client, or a pasted token."""
 import streamlit as st
 
-from gga import auth, ui
+from gga import __version__, auth, ui
 
 S = st.session_state
 WEB = auth.is_web()
@@ -154,3 +154,4 @@ Use Google's [OAuth 2.0 Playground](https://developers.google.com/oauthplaygroun
 - You only see what the connected Google account can already open.
 - If the host restricts sign-in to one company domain, accounts from other domains are refused.
 """)
+st.caption(f"GA4 & GTM Audit Tool version {__version__}")

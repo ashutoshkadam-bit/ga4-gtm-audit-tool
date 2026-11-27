@@ -18,7 +18,7 @@ import sys
 import time
 from urllib.parse import urlparse
 
-from . import site, techdb
+from . import log, site, techdb
 
 SCHEMA = "gga-capture-1"
 MAX_REQUESTS = 4000
@@ -131,6 +131,7 @@ def launch_browser(p):
                 break
             continue
         break
+    log.warning("browser_unavailable", detail=last.replace("\n", " ")[:200])
     raise BrowserUnavailable("A browser is not available on this server, so the full page audit cannot run here.")
 
 
@@ -370,7 +371,7 @@ def capture(url, device="desktop", wait_s=8, scroll=True, consent="none", timeou
 
     requests = [recs[i] for i in order]
     return dict(
-        schema=SCHEMA, source="playwright", url=url, final_url=final_url, started=datetime.datetime.utcnow().isoformat() + "Z",
+        schema=SCHEMA, source="playwright", url=url, final_url=final_url, started=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + "Z",
         seconds=round(time.time() - t_start, 1), device=device, user_agent=ua, nav_error=nav_error,
         status=main_resp.status if main_resp else None, doc_headers=doc_headers, requests=requests,
         requests_dropped=state["dropped"], console=console, errors=errors, cookies=cookies_before,

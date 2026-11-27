@@ -6,7 +6,15 @@ Usage:
   python audit.py --only gtm --limit 5
 Outputs CSVs into ./audit_output/<timestamp>/
 """
-import argparse, csv, datetime, json, os, pathlib, re, time, collections
+import argparse
+import csv
+import datetime
+import json
+import os
+import pathlib
+import re
+import time
+import collections
 import google.auth
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError

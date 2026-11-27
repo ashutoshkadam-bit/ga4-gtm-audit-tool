@@ -1,4 +1,9 @@
-import csv, json, re, collections, glob, os
+import csv
+import json
+import re
+import collections
+import glob
+import os
 d = sorted(glob.glob('audit_output_full/*'))[-1]
 rows = list(csv.DictReader(open(d + '/findings.csv', encoding='utf-8-sig')))
 mid = json.load(open('all_mids.json'))

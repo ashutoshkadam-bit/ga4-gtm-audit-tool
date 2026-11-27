@@ -15,3 +15,6 @@ scope_tables/
 *.log
 all_mids.json
 .streamlit/secrets.toml
+.pytest_cache/
+.ruff_cache/
+.ext_profile/

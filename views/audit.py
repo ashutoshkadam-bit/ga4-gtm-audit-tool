@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 import streamlit as st
 
-from gga import auth, core, knowledge, report, site, ui
+from gga import auth, core, knowledge, log, report, site, ui
 
 S = st.session_state
 WEB = auth.is_web()
@@ -31,8 +31,12 @@ if st.button("Load my accounts", type="primary" if "ga4_rows" not in S else "sec
         bar.empty()
         S.pop("results", None)
     except Exception as e:  # noqa: BLE001
-        st.error(f"Could not read your accounts: {core.short_err(e)}")
+        log.exception("load_accounts_failed", e, user=log.who(S.get("email", "")))
+        ui.notice("Could not read your accounts", f"{core.short_err(e)} If this keeps happening, reconnect on the Profile page, "
+                  "or check that the Analytics and Tag Manager APIs are enabled for your OAuth client's project.", "warn")
         S.pop("ga4_rows", None)
+    else:
+        log.event("accounts_loaded", ga4=len(S.ga4_rows), gtm=len(S.gtm_rows), user=log.who(S.get("email", "")))
 
 if "ga4_rows" in S:
     ga4_counts = collections.Counter(r["account"] for r in S.ga4_rows)
@@ -104,6 +108,8 @@ if "ga4_rows" in S:
         S.results = dict(findings=findings, inventory=inventory, days=days,
                          meta=dict(title="GA4 & GTM audit", user=S.email, scope_text=" | ".join(scope_bits)[:400], days=days),
                          seconds=(datetime.datetime.now() - t0).seconds)
+        log.event("audit_run", ga4=len(ga4_pick), gtm=len(gtm_pick), findings=len(findings), seconds=S.results["seconds"],
+                  user=log.who(S.get("email", "")))
 
 # ---------------------------------------------------------------- 3. results
 if "results" in S:

@@ -45,12 +45,16 @@ def normalize(url):
 def _check_public(url):
     """Refuses anything that is not a public http(s) address. (A determined DNS-rebinding attack could still race this
     check, so only expose the hosted tool to signed-in staff, as it is by default.)"""
-    p = urlparse(url)
+    try:
+        p = urlparse(url)
+        port = p.port  # raises ValueError for an invalid port such as "javascript:alert(1)"
+    except ValueError:
+        raise BlockedAddress("this is not a valid web address")
     if p.scheme not in ("http", "https") or not p.hostname:
         raise BlockedAddress("only http and https addresses are allowed")
     try:
-        infos = socket.getaddrinfo(p.hostname, p.port or (443 if p.scheme == "https" else 80))
-    except OSError:
+        infos = socket.getaddrinfo(p.hostname, port or (443 if p.scheme == "https" else 80))
+    except (OSError, UnicodeError):
         raise BlockedAddress("the address could not be resolved")
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
