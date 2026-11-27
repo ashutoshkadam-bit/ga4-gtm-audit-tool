@@ -174,9 +174,8 @@ with t_over:
     for cat in techdb.CATEGORIES:
         if by_cat.get(cat):
             st.markdown(f"**{cat}:** " + ", ".join(by_cat[cat]))
-    top = [f for f in F if f["status"] in ("FAIL", "WARN")]
-    st.markdown(f"**{len(top)} problems found** ({sum(f['status'] == 'FAIL' for f in F)} fail, {sum(f['status'] == 'WARN' for f in F)} warn). "
-                "See the Findings and fixes tab.")
+    st.subheader("Summary")
+    st.markdown(report.summary_markdown(report.executive_summary(F)))
     if reqs:
         df = pd.DataFrame([dict(t=(r.get("start_ms") or 0) / 1000, kb=(r.get("encoded_size") or 0) / 1024) for r in reqs])
         df = df.sort_values("t")
