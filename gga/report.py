@@ -85,6 +85,11 @@ def to_xlsx(findings, inventory):
     sheet("Summary", summarize(findings), ["scope", "account", "entity", "entity_id", "score", "FAIL", "WARN", "ERROR", "PASS", "INFO"], True)
     sheet("By account", by_account(findings), ["scope", "account", "entities", "FAIL", "WARN", "ERROR"])
     sheet("By check", by_check(findings), ["scope", "check"] + ORDER)
+    from . import knowledge
+    guides = [dict(check=g["check"], fails=g["FAIL"], warns=g["WARN"], errors=g["ERROR"], why=g["why"], fix=g["fix"],
+                   source=g["source"][0] if g["source"] else "", link=g["source"][1] if g["source"] else "")
+              for g in knowledge.for_findings(findings)]
+    sheet("How to fix", guides, ["check", "fails", "warns", "errors", "why", "fix", "source", "link"])
     sheet("Findings", findings, COLS)
     sheet("GA4 IDs", inventory, ["scope", "account", "entity", "entity_id", "ids"])
     out = io.BytesIO()
@@ -121,6 +126,15 @@ def to_html(findings, meta):
         detail += (f"<details><summary>{html.escape(scope)} · {html.escape(acct)} "
                    f"<small>({len(rows)} issues)</small></summary>"
                    + _table(rows, ["entity", "entity_id", "check", "status", "detail"], "status") + "</details>")
+    from . import knowledge
+    fixes = ""
+    for g in knowledge.for_findings(findings):
+        counts = ", ".join(f"{g[k]} {k.lower()}" for k in ("FAIL", "WARN", "ERROR") if g[k])
+        src = (f' <a href="{html.escape(g["source"][1])}">{html.escape(g["source"][0])}</a>' if g["source"] else "")
+        fixes += (f"<details><summary>{html.escape(g['check'])} <small>({counts})</small></summary>"
+                  f"<p><b>Why it matters.</b> {html.escape(g['why'])}</p><p><b>How to fix.</b> {html.escape(g['fix'])}</p>"
+                  + (f"<p><b>Source:</b>{src}</p>" if src else "") + "</details>")
+    fixes = fixes or "<p>No failures or warnings to explain.</p>"
     return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(meta.get('title', 'Audit'))}</title>
 <style>body{{font:14px system-ui,Segoe UI,Arial;margin:32px auto;max-width:1100px;color:#222;padding:0 16px}}
 h1{{margin:0 0 4px}}h2{{margin-top:32px;border-bottom:1px solid #ddd;padding-bottom:4px}}
@@ -136,6 +150,7 @@ details{{margin:6px 0}}summary{{cursor:pointer;font-weight:600;padding:4px 0}}sm
 <h2>Results by account</h2>{_table(by_account(findings), ['scope', 'account', 'entities', 'FAIL', 'WARN', 'ERROR'])}
 <h2>Lowest health scores</h2>{_table(summarize(findings)[:25], ['scope', 'account', 'entity', 'entity_id', 'score', 'FAIL', 'WARN', 'ERROR'])}
 <h2>Failures</h2>{_table(problems, ['scope', 'account', 'entity', 'check', 'status', 'detail'], 'status') if problems else '<p>None.</p>'}
+<h2>How to fix</h2>{fixes}
 <h2>All warnings and failures by account</h2>{detail}
 <p class="meta">Score = 100 minus 20 per fail, 5 per warn or error. Read-only audit of live GTM versions and the last
 {meta.get('days', 30)} days of GA4 data. GA4 internal traffic filters cannot be read through Google's API.</p>

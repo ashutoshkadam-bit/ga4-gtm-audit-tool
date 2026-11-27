@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 import streamlit as st
 
-from gga import auth, core, report, site
+from gga import auth, core, knowledge, report, site
 
 st.set_page_config(page_title="GA4 & GTM Audit", page_icon=":mag:", layout="wide")
 S = st.session_state
@@ -189,7 +189,20 @@ if "results" in S:
     if tot["ERROR"]:
         st.warning("Some checks could not run (usually a permission or API limit on that item). "
                    "Filter the Findings tab by status ERROR to see which.")
-    t1, t2, t3, t4, t5 = st.tabs(["By check", "By account", "Items by health", "All findings", "Download"])
+    t1, t2, t3, t4, t6, t5 = st.tabs(["By check", "By account", "Items by health", "All findings", "How to fix", "Download"])
+    with t6:
+        guides = knowledge.for_findings(F)
+        st.caption("Why each problem matters and how to fix it, worst first, with a link to the official source. "
+                   "The full list of checks and the frameworks behind them are on the Frameworks and fix guides page.")
+        if not guides:
+            st.info("No failures or warnings to explain.")
+        for g in guides:
+            counts = ", ".join(f"{g[k]} {k.lower()}" for k in ("FAIL", "WARN", "ERROR") if g[k])
+            with st.expander(f"{g['check']}  ·  {counts}"):
+                st.markdown(f"**Why it matters.** {g['why']}")
+                st.markdown(f"**How to fix.** {g['fix']}")
+                if g["source"]:
+                    st.markdown(f"**Source:** [{g['source'][0]}]({g['source'][1]})")
     with t1:
         st.dataframe(pd.DataFrame(report.by_check(F)), width="stretch", hide_index=True)
     with t2:

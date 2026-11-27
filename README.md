@@ -42,6 +42,20 @@ Statuses: **FAIL** is broken or missing, **WARN** is a risk or best-practice gap
 for reference, **PASS** is fine, **ERROR** means a check could not run (usually a permission).
 Health score = 100 minus 20 per fail and 5 per warn or error.
 
+## Fix guides and frameworks library
+
+Every check has a plain-language guide: why it matters, how to fix it, and a link to the official source.
+
+- After an audit, the **How to fix** tab explains each problem found, worst first. The same guides are in the Excel
+  report (a "How to fix" sheet) and the HTML report.
+- The **Frameworks and fix guides** page (in the sidebar, no sign-in needed) summarises public audit and analytics
+  frameworks in our own words, with links: the audit lifecycle, measurement planning, data quality dimensions,
+  tag governance, privacy and consent, attribution, sampling and thresholds, and risk-based prioritisation.
+
+Most books and standards are copyrighted, so the tool links to them instead of copying them. A check with no link has
+none because no authoritative page was found. Limits and defaults change, so confirm against the linked page before acting.
+The content lives in `gga/knowledge.py` and `gga/frameworks.py` and is easy to extend.
+
 ## Live site check (optional)
 
 Section 4 of the tool compares what your **websites really load** with what Google Analytics and Tag Manager say.
