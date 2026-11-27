@@ -112,6 +112,12 @@ Where it is stored: on your own computer, a file in your user folder; on a hoste
 (see DEPLOY.md), otherwise only for the current visit. Each person sees only their own runs. Saved runs contain finding text, which can
 include account, container and website names, so treat the database as client data.
 
+## Scheduled audits
+
+The **Schedules** page runs an audit by itself every day, week or month for the accounts you choose, saves each run to History and sends a
+message to a webhook (Slack, Teams, Google Chat, Discord) or an email when something new appeared or got worse. It needs the history database
+and an admin-set `GGA_SCHEDULE_KEY`; see DEPLOY.md. Your read-only Google sign-in is stored encrypted and you can delete it at any time.
+
 ## Live site check (optional)
 
 Section 4 of the tool compares what your **websites really load** with what Google Analytics and Tag Manager say.

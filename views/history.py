@@ -41,7 +41,7 @@ if not runs_all:
 
 def label(r):
     when = r["created_at"].replace("T", " ")[:16]
-    return f"{when} Â· {history.KINDS.get(r['kind'], r['kind'])} Â· {r['n_entities']} items Â· {r['n_fail']} fail, {r['n_warn']} warn Â· {r['scope_text'][:60]}"
+    return f"{when} · {history.KINDS.get(r['kind'], r['kind'])} · {r['n_entities']} items · {r['n_fail']} fail, {r['n_warn']} warn · {r['scope_text'][:60]}"
 
 
 tab_cmp, tab_runs, tab_trend = st.tabs(["Compare", "Saved runs", "Trends"])

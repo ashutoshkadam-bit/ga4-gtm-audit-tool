@@ -55,6 +55,22 @@ Each signed-in person sees only their own runs. Optional: `GGA_HISTORY_KEEP` set
 If the database cannot be reached, the tool does not fail: it falls back to session-only history and says so on the History page.
 Backups, retention and access control are your database provider's job. The tables hold finding text, which can include client names.
 
+## Scheduled audits (optional)
+
+The **Schedules** page lets people run an audit automatically and get an alert when something got worse. It needs the history database
+(above) and one more secret:
+
+1. Choose a long random text and set it as `GGA_SCHEDULE_KEY` in the website's secrets (it encrypts the saved Google sign-ins). Reboot.
+2. In the GitHub repository, add Actions secrets (Settings, Secrets and variables, Actions): `GGA_DATABASE_URL` and `GGA_SCHEDULE_KEY`
+   (the same values), optionally `GGA_REDIRECT_URI` (puts a link to the tool in alerts) and `GGA_SMTP_HOST`, `GGA_SMTP_PORT`,
+   `GGA_SMTP_USER`, `GGA_SMTP_PASSWORD`, `GGA_SMTP_FROM` for email alerts. Never commit them.
+3. The workflow *Scheduled audits* runs daily at 01:30 UTC. Run it once by hand from the Actions tab to test. GitHub pauses scheduled
+   workflows in a public repository after 60 days without activity; running it by hand wakes it.
+
+While the Google Cloud app is in *Testing* mode, Google expires refresh tokens after 7 days, so a schedule then stops working and alerts that
+it needs to be created again. Publishing the app as **Internal** (Workspace) avoids that. On your own computer, run `python -m gga.schedule`
+from Windows Task Scheduler or cron instead.
+
 ## 3. Pick a host
 
 ### A. Google Cloud Run (recommended)

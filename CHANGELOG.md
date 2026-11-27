@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 (summaries and scheduled audits)
+- An executive **Summary** now opens the audit results and the Page audit overview, and heads the HTML and Excel reports: overall health, what to
+  fix first, what to schedule, what could not be checked, the accounts and items that need most attention.
+- New **Schedules** page: run an audit daily, weekly or monthly without anyone present, save each run to History and get a webhook
+  (Slack, Teams, Google Chat, Discord) or email alert when something is new or got worse. Saved sign-ins are encrypted and read-only.
+- New workflow `scheduled-audits.yml` runs the due schedules every day (`python -m gga.schedule`).
+
 ## 1.2.0 (history release)
 - New **History** page: every audit is saved, and any two runs can be compared (new problems, got worse, fixed, improved, still open,
   health score per item). Trends chart and "problems that keep coming back". Compare against a findings file you downloaded earlier.

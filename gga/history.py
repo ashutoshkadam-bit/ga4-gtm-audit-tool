@@ -46,6 +46,28 @@ findings_t = Table(
     Column("scope", String(8)), Column("account", String(300)), Column("entity", String(400)), Column("entity_id", String(120)),
     Column("check_name", String(120)), Column("status", String(8)), Column("detail", Text),
 )
+schedules_t = Table(
+    "schedules", md,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("owner", String(40), nullable=False, index=True),
+    Column("email", String(200)),
+    Column("name", String(120)),
+    Column("frequency", String(10)),
+    Column("accounts", Text),
+    Column("only", String(4)),
+    Column("days", Integer),
+    Column("data_checks", Integer),
+    Column("alert_always", Integer, default=0),
+    Column("webhook_enc", Text),
+    Column("notify_email", String(200)),
+    Column("secret_enc", Text),
+    Column("active", Integer, default=1),
+    Column("created_at", DateTime(timezone=True)),
+    Column("last_run_at", DateTime(timezone=True)),
+    Column("last_status", String(16)),
+    Column("last_message", Text),
+    Column("last_run_id", Integer),
+)
 
 
 def owner_id(email):

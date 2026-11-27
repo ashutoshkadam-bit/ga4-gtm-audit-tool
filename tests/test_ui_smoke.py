@@ -66,7 +66,7 @@ def test_every_page_renders_without_an_exception(browser_ready, app_url):
         page.goto(app_url)
         page.wait_for_function("document.body.innerText.includes('Sign in to use')", timeout=60000)
         seen["home"] = page.locator("body").inner_text()
-        for label, marker in (("Page audit", "Audit a URL"), ("History", "compared with"), ("Guides", "Frameworks library"), ("Profile", "Connect an account")):
+        for label, marker in (("Page audit", "Audit a URL"), ("History", "compared with"), ("Schedules", "No schedules yet"), ("Guides", "Frameworks library"), ("Profile", "Connect an account")):
             page.get_by_role("link", name=re.compile(label)).first.click()
             page.wait_for_function(f"document.body.innerText.includes({marker!r})", timeout=60000)
             page.wait_for_timeout(800)

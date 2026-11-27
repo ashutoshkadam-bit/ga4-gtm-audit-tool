@@ -1,0 +1,47 @@
+name: Scheduled audits
+
+# Runs the audits that people set up on the tool's Schedules page. Nothing happens until the two secrets below exist.
+on:
+  schedule:
+    - cron: "30 1 * * *"   # every day at 01:30 UTC; each schedule decides for itself whether it is due
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-audits
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GGA_DATABASE_URL: ${{ secrets.GGA_DATABASE_URL }}
+      GGA_SCHEDULE_KEY: ${{ secrets.GGA_SCHEDULE_KEY }}
+      GGA_REDIRECT_URI: ${{ secrets.GGA_REDIRECT_URI }}
+      GGA_SMTP_HOST: ${{ secrets.GGA_SMTP_HOST }}
+      GGA_SMTP_PORT: ${{ secrets.GGA_SMTP_PORT }}
+      GGA_SMTP_USER: ${{ secrets.GGA_SMTP_USER }}
+      GGA_SMTP_PASSWORD: ${{ secrets.GGA_SMTP_PASSWORD }}
+      GGA_SMTP_FROM: ${{ secrets.GGA_SMTP_FROM }}
+    steps:
+      - name: Check the secrets exist
+        id: ready
+        run: |
+          if [ -n "$GGA_DATABASE_URL" ] && [ -n "$GGA_SCHEDULE_KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "GGA_DATABASE_URL and GGA_SCHEDULE_KEY are not set as Actions secrets, so there is nothing to run."; fi
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.ok == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install
+        if: steps.ready.outputs.ok == 'true'
+        run: pip install -r requirements.txt
+      - name: Run due schedules
+        if: steps.ready.outputs.ok == 'true'
+        run: python -m gga.schedule
