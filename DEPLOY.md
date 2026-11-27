@@ -98,6 +98,19 @@ set GGA_REDIRECT_URI=http://localhost:8501
 .venv\Scripts\python -m streamlit run app.py
 ```
 
+## The Page audit page and browser hosting
+
+The **Page audit** page drives a real headless Chromium browser. That works out of the box on your own computer and with the
+included `Dockerfile` (Cloud Run or any Docker host), which installs the browser and its system libraries.
+
+On **Streamlit Community Cloud** the browser needs extra system libraries. `packages.txt.example` lists the usual ones. To try it,
+rename it to `packages.txt` and redeploy. This is untested on Community Cloud, and a wrong package name there makes the whole deploy
+fail, so keep the original file handy. If it does not work, use Cloud Run for the Page audit, or let people capture pages with the
+Chrome extension and import the file (that needs no browser on the server).
+
+Because the server opens whatever address a signed-in user types, keep `GGA_ALLOWED_DOMAIN` set. The tool refuses addresses on
+private or internal networks, including requests the page itself makes.
+
 ## Notes
 
 - Refreshing the page signs the person out (their login is only in memory). One click on **Sign in with

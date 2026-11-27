@@ -59,6 +59,11 @@ def _check_public(url):
             raise BlockedAddress("this address points to a private or internal network, which is not allowed")
 
 
+def check_public(url):
+    """Public name for the guard used by the browser page audit. Raises BlockedAddress for non-public addresses."""
+    _check_public(url)
+
+
 def safe_fetch(url, session=None):
     """Returns (status_code, final_url, text, error). error is empty on success."""
     s = session or requests.Session()

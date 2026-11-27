@@ -176,7 +176,8 @@ if "ga4_rows" in S:
 # ---------------------------------------------------------------- 3. results
 if "results" in S:
     R = S.results
-    F = R["findings"] + S.get("site_findings", [])  # live site check results join the reports when present
+    # live site check and page audit results join the reports when present
+    F = R["findings"] + S.get("site_findings", []) + S.get("page_findings", [])
     st.header("3. Results")
     tot = collections.Counter(r["status"] for r in F)
     ents = {(r["scope"], r["entity_id"] or r["entity"]) for r in F}

@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "GA4 & GTM Audit Recorder",
+  "version": "1.0.0",
+  "description": "Records a page in your own browser (network calls, console, tags, cookies) and exports a capture file for the GA4 & GTM Audit tool. Nothing is sent anywhere.",
+  "minimum_chrome_version": "111",
+  "permissions": ["webRequest", "tabs", "scripting", "cookies", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "GA4 & GTM Audit Recorder", "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["globals.js", "injected.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    }
+  ]
+}

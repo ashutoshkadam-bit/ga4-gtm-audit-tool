@@ -42,6 +42,26 @@ Statuses: **FAIL** is broken or missing, **WARN** is a risk or best-practice gap
 for reference, **PASS** is fine, **ERROR** means a check could not run (usually a permission).
 Health score = 100 minus 20 per fail and 5 per warn or error.
 
+## Page audit and Chrome extension
+
+The **Page audit** page (in the sidebar) loads any web address in a real headless Chromium browser and records everything the page does:
+
+- every network request with timing, size, protocol, server IP, response headers and **how it was started** (hard-coded in the page, or
+  loaded by Tag Manager, Adobe Launch and so on)
+- console messages and script errors, dataLayer pushes, cookies and storage
+- the technologies in use: Tag Manager, GA4, Adobe (Analytics, Launch, Web SDK, Target), Meta, Google Ads, other ad, analytics, session
+  replay and A/B tools, consent tools, CDN and hosting, CMS and framework. Detection rules are in `gga/techdb.py`.
+- each GA4, Adobe and Meta hit decoded (event names, report suites, IDs), duplicate GA4 hits, tags that load outside the tag manager
+- speed (server response, first paint, largest paint, layout shift), page weight, compression, caching, security headers
+- an optional **consent test**: it compares what loads before any choice with what loads after clicking the cookie banner's accept button
+
+Everything lands in the Findings with fix guides, and in the reports. For logged-in pages or sites that block automated browsers, use the
+**Chrome extension** in the `extension` folder: it records the page in your own browser and exports a file you import on the same page.
+See `extension/README.md`.
+
+Setup for the browser engine on your own computer: `pip install -r requirements.txt` then `python -m playwright install chromium`
+(`run.bat` and `run.sh` do the first part; the page offers a button for the second).
+
 ## Fix guides and frameworks library
 
 Every check has a plain-language guide: why it matters, how to fix it, and a link to the official source.

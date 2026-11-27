@@ -4,6 +4,8 @@ ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+# the Page audit needs a real browser; --with-deps also installs the system libraries it needs
+RUN python -m playwright install --with-deps chromium
 COPY . .
 
 # Cloud Run and most hosts set PORT; default 8080.

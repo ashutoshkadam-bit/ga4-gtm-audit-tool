@@ -97,6 +97,17 @@ FRAMEWORKS = [
                  ("Analytics Help: How Analytics stores and displays data", GA + "13888627"),
                  ("Analytics Help: Data retention", GA + "7667196")]),
     dict(
+        name="Browser-level page and tag auditing",
+        kind="General practice",
+        what="Configuration in Google tells you what should happen. A browser audit shows what does happen: load the page in a clean "
+             "browser with no stored cookies, record every request, and compare it with the plan. Do it twice, once before touching "
+             "the cookie banner and once after accepting, to see what consent really controls. Record who loaded each tag (the tag "
+             "manager, or hard-coded in the page), because tags outside the tag manager escape governance.",
+        in_tool="The Page audit page and the Chrome extension do exactly this. They report technologies, tag hits, how each tag loaded, "
+                "console errors, cookies, CDN and speed, and compare tracking before and after consent.",
+        use_when="A tag looks configured but numbers are wrong, before a privacy review, or when taking over a site.",
+        sources=[]),
+    dict(
         name="Risk-based prioritisation",
         kind="General practice",
         what="Rank findings by impact on decisions and by effort to fix, then do the high-impact, low-effort ones "

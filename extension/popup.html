@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px system-ui, Segoe UI, Arial; width: 330px; margin: 0; padding: 12px; color: #222; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    .url { color: #666; word-break: break-all; margin-bottom: 8px; font-size: 12px; }
+    button { width: 100%; margin: 3px 0; padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: #f6f6f6; cursor: pointer; font-size: 13px; }
+    button.primary { background: #c0392b; border-color: #c0392b; color: #fff; }
+    button:disabled { opacity: .45; cursor: default; }
+    #stats { margin: 8px 0; padding: 8px; background: #f3f3f3; border-radius: 6px; min-height: 34px; line-height: 1.5; }
+    .hint { color: #666; font-size: 12px; margin-top: 8px; }
+    .rec { color: #c0392b; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>GA4 &amp; GTM Audit Recorder</h1>
+  <div class="url" id="url"></div>
+  <button class="primary" id="startReload">Record and reload the page</button>
+  <button id="start">Record without reloading</button>
+  <button id="mark" disabled>I accepted the cookie banner (mark)</button>
+  <button id="stop" disabled>Stop and download capture</button>
+  <div id="stats">Not recording.</div>
+  <div class="hint">After downloading, open the Page audit page of the audit tool and use <b>Import from the Chrome extension</b>.
+  Everything stays on your computer until you upload the file.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

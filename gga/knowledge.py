@@ -199,6 +199,135 @@ GUIDES = {
 }
 
 
+MDN = "https://developer.mozilla.org/en-US/docs/Web/"
+WEBDEV = "https://web.dev/articles/"
+
+# ---------------------------------------------------------------------- browser page audit
+GUIDES.update({
+    "HTTPS": dict(
+        why="A page served over plain http can be read or changed in transit, and browsers mark it as not secure.",
+        fix="Install a certificate, redirect http to https, and send an HSTS header.",
+        source=("MDN: Strict-Transport-Security", MDN + "HTTP/Headers/Strict-Transport-Security")),
+    "Mixed content": dict(
+        why="An https page that loads scripts or images over http can be tampered with, and browsers may block them.",
+        fix="Change every resource address to https, or to a protocol-relative path.",
+        source=("MDN: Mixed content", MDN + "Security/Mixed_content")),
+    "Console errors": dict(
+        why="JavaScript errors can stop tags and features from running. Missing files (404) also show up as console errors.",
+        fix="Open the page in browser developer tools, fix or remove the failing script, and replace broken file links."),
+    "Failed requests": dict(
+        why="Requests that fail outright (blocked, refused, timed out) mean content or tags did not load.",
+        fix="Check the address, the server and any blockers such as content security rules or ad blockers."),
+    "HTTP errors on resources": dict(
+        why="Files returning 4xx or 5xx are missing or broken, which slows the page and can break tracking.",
+        fix="Fix the file path or remove the reference."),
+    "Redirect chain": dict(
+        why="Each redirect before the page adds delay and can drop campaign parameters.",
+        fix="Link straight to the final address and keep redirects to one hop.",
+        source=("MDN: HTTP redirections", MDN + "HTTP/Redirections")),
+    "Technology stack": dict(
+        why="What the page is built with, found from network requests, headers, page code and browser globals. Recorded for reference.",
+        fix="None needed. Use it to see what an audit must cover."),
+    "Consent management": dict(
+        why="A consent tool lets visitors choose before tracking runs. Without one, tracking tags load for everyone. Google Consent "
+            "Mode signals alone are not a banner.",
+        fix="Install a consent management platform and connect it to Tag Manager's consent settings, with legal review.",
+        source=_CONSENT_SRC),
+    "GTM container loads": dict(
+        why="Shows how and when each Tag Manager container loaded. A container in the HTML that never loads is blocked or waiting.",
+        fix="If a container never loads, check consent settings and blockers. Move the snippet as high in the head as possible.",
+        source=("Google: Install Tag Manager on a web page", "https://developers.google.com/tag-platform/tag-manager/web")),
+    "Multiple tag managers": dict(
+        why="Two tag managers (for example GTM and Adobe Launch) on one page double the maintenance and risk of duplicate tags.",
+        fix="Pick one tag manager per site and migrate the other's tags."),
+    "GA4 hits observed": dict(
+        why="Proves that GA4 actually sends data, and which events. A loaded GA4 tag with no hit may be waiting for consent or broken.",
+        fix="Check the trigger, consent settings and measurement ID, and test in Tag Assistant."),
+    "GA4 duplicate hits": dict(
+        why="The same event sent twice inflates page views and conversions.",
+        fix="Find the second tag (often one in the page HTML and one in Tag Manager) and remove one."),
+    "GA4 properties receiving hits": dict(
+        why="Several GA4 IDs on one page can be deliberate roll-ups or leftovers. Recorded for reference.",
+        fix="Confirm each property should receive this site's data."),
+    "Adobe Analytics hits": dict(
+        why="Adobe Analytics collection seen on the page, with its report suite. Recorded for reference.",
+        fix="None needed."),
+    "GA4 and Adobe together": dict(
+        why="Two analytics tools measuring the same page rarely agree exactly, because of different definitions and processing.",
+        fix="Agree which tool is the source of truth for each metric."),
+    "Meta pixel hits": dict(
+        why="Meta pixel events seen on the page. Recorded for reference.",
+        fix="Check that the pixel ID and events match the campaigns."),
+    "Tags outside the tag manager": dict(
+        why="Tags hard-coded in the page or its inline scripts sit outside tag manager governance, are easy to miss in audits and can duplicate tag manager tags.",
+        fix="Move them into the tag manager, or document why they are hard-coded."),
+    "Tracking before consent": dict(
+        why="Analytics and advertising requests sent before the visitor chooses may breach consent rules in places that require consent. "
+            "Google Consent Mode pings with everything denied are not counted here.",
+        fix="Hold these tags until consent, using the tag manager's consent settings, and have legal confirm the requirements.",
+        source=_CONSENT_SRC),
+    "Cookies before consent": dict(
+        why="Tracking cookies set before any choice are a common consent finding.",
+        fix="Block the tags that set them until consent is given."),
+    "Consent test": dict(
+        why="Records what changed after a visible accept button was clicked. Recorded for reference.",
+        fix="If no banner was found, check manually. The banner may sit in a frame or need a different click."),
+    "dataLayer": dict(
+        why="The dataLayer carries events and data from the page to Tag Manager. Recorded for reference.",
+        fix="Check that the events you rely on, such as form submit or purchase, appear here.",
+        source=("Google: The data layer", "https://developers.google.com/tag-platform/tag-manager/datalayer")),
+    "Third-party requests": dict(
+        why="Every outside host adds delay, risk and privacy exposure. Large numbers usually come from tags and ads.",
+        fix="Remove tags nobody uses and load the rest after the page is usable."),
+    "Page weight": dict(
+        why="Heavy pages load slowly, especially on mobile networks.",
+        fix="Compress images, split or remove large scripts, and lazy-load content below the fold.",
+        source=("web.dev: Web Vitals", WEBDEV + "vitals")),
+    "Large resources": dict(
+        why="Single files over 1.5 MB, often images or video, dominate load time.",
+        fix="Resize, convert to modern formats such as WebP or AVIF, and stream video.",
+        source=("web.dev: Largest Contentful Paint", WEBDEV + "lcp")),
+    "Loading speed": dict(
+        why="Slow server response and slow first or largest paint hurt users and conversions. This is one lab run, not field data.",
+        fix="Improve server response, preload the main image, defer non-critical scripts and use a CDN. Confirm with real-user data.",
+        source=("web.dev: Largest Contentful Paint", WEBDEV + "lcp")),
+    "Layout stability": dict(
+        why="Content that jumps while loading frustrates users and causes mis-clicks.",
+        fix="Reserve space for images, ads and embeds with width and height or aspect-ratio.",
+        source=("web.dev: Cumulative Layout Shift", WEBDEV + "cls")),
+    "Compression": dict(
+        why="Uncompressed text files are several times larger than necessary.",
+        fix="Enable Brotli or gzip on the server or CDN.",
+        source=("MDN: Compression in HTTP", MDN + "HTTP/Compression")),
+    "Caching": dict(
+        why="Files with no cache lifetime are re-downloaded on every visit.",
+        fix="Send Cache-Control with a long max-age for versioned static files.",
+        source=("MDN: HTTP caching", MDN + "HTTP/Caching")),
+    "HTTP protocol": dict(
+        why="HTTP/2 and HTTP/3 load many files faster than HTTP/1.1. Recorded for reference.",
+        fix="Enable HTTP/2 or HTTP/3 on the server or CDN if most requests use HTTP/1.1."),
+    "CDN": dict(
+        why="A content delivery network serves files from nearby locations. Evidence comes from response headers and file hosts.",
+        fix="Consider one for static files if none is detected and visitors are spread across regions.",
+        source=("MDN: CDN", "https://developer.mozilla.org/en-US/docs/Glossary/CDN")),
+    "Blocking scripts": dict(
+        why="Third-party scripts without async or defer stop the page from rendering until they download.",
+        fix="Add async or defer, or load them through the tag manager after the page is usable.",
+        source=("MDN: The script element", MDN + "HTML/Reference/Elements/script")),
+    "Security headers": dict(
+        why="Headers such as HSTS, Content-Security-Policy and X-Content-Type-Options reduce common attacks. Missing ones are a hardening gap.",
+        fix="Add them at the server or CDN, starting with HSTS and X-Content-Type-Options, then a tested Content-Security-Policy.",
+        source=("MDN: Content Security Policy", MDN + "HTTP/CSP")),
+    "Cookie security": dict(
+        why="Cookies without the Secure flag can be sent over unencrypted connections.",
+        fix="Set Secure, and SameSite and HttpOnly where it applies, in whatever sets the cookie.",
+        source=("MDN: Using HTTP cookies", MDN + "HTTP/Cookies")),
+    "Third-party cookies": dict(
+        why="Cookies from other domains come from embedded services such as ads and analytics. Recorded for reference.",
+        fix="Review each against your privacy notice."),
+})
+
+
 def guide(check):
     """Returns dict(why, fix, source=(title, url) or None) for a check name, or None."""
     g = GUIDES.get(check)
