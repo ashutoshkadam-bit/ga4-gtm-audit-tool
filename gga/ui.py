@@ -7,7 +7,7 @@ import hashlib
 
 import streamlit as st
 
-from . import auth
+from . import __version__, auth, compare, history, log
 
 S = st.session_state
 
@@ -86,6 +86,70 @@ def require_login(what="this page"):
     with c1:
         st.page_link("views/profile.py", label="Go to Profile and sign in", icon=":material/person:")
     st.stop()
+
+
+# ------------------------------------------------------------------ saved history
+@st.cache_resource(show_spinner=False)
+def _shared_store(url, web):
+    """One database connection per server process. Returns (store or None, note)."""
+    store, note = history.open_store(None, web, url)
+    return (store if store.mode != "session" else None), note
+
+
+def get_store():
+    """The history store for this visitor and a plain-language note about any fallback."""
+    web = auth.is_web()
+    url = auth._cfg("GGA_DATABASE_URL")  # noqa: SLF001
+    note = ""
+    if url or not web:
+        try:
+            store, note = _shared_store(url, web)
+        except Exception as e:  # noqa: BLE001
+            log.exception("history_store_failed", e)
+            store, note = None, "The history database could not be opened, so history is kept for this session only."
+        if store is not None:
+            return store, note
+    return history.SessionStore(S), note
+
+
+def owner():
+    return history.owner_id(email())
+
+
+def save_history(kind, title, scope_text, findings, meta=None):
+    """Saves one run. Never raises: history must not break an audit. Returns the run id or None."""
+    try:
+        store, _ = get_store()
+        rid = store.save_run(owner(), kind, title, scope_text, findings, meta, version=__version__)
+        log.event("history_saved", kind=kind, findings=len(findings), where=store.mode)
+        return rid
+    except Exception as e:  # noqa: BLE001
+        log.exception("history_save_failed", e)
+        return None
+
+
+def previous_run(kind, scope_text, exclude=None):
+    """The latest saved run of the same kind and scope, or None."""
+    try:
+        store, _ = get_store()
+        for r in store.list_runs(owner(), kind):
+            if r["id"] != exclude and r["scope_text"] == scope_text:
+                return r, store.get_findings(owner(), r["id"])
+    except Exception as e:  # noqa: BLE001
+        log.exception("history_read_failed", e)
+    return None
+
+
+def since_last_notice(kind, scope_text, run_id, findings, key):
+    """Shows 'since your last run: ...' under a fresh result, or tells the person that history is now saved."""
+    prev = previous_run(kind, scope_text, exclude=run_id)
+    if prev:
+        run, old = prev
+        c = compare.compare(old, findings)
+        st.success(f"Since your last run on {run['created_at'][:10]}: {compare.headline(c)}.")
+        st.page_link("views/history.py", label="See what changed", icon=":material/difference:")
+    elif run_id:
+        st.info("Saved to history. Run this again later and this page will show what changed since now.")
 
 
 # ------------------------------------------------------------------ header and profile menu

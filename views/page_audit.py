@@ -49,6 +49,7 @@ with tab_run:
     allow_private = False
     if not WEB:
         allow_private = st.checkbox("Allow local or internal addresses (this computer only)", False)
+    save_hist = st.checkbox("Save results to history", True, help="Lets you compare this page with later audits on the History page.")
     if st.button("Run page audit", type="primary", disabled=not urls_text.strip()):
         urls = [u for u in urls_text.splitlines() if u.strip()][:5]
         runs, limited, skipped = [], [], []
@@ -85,6 +86,10 @@ with tab_run:
                     with st.expander("Technical details"):
                         st.code(f"{type(e).__name__}: {str(e)[:400]}")
         if runs:
+            if save_hist:
+                for r in runs:
+                    r["run_id"] = ui.save_history("page", r["an"]["page_host"], r["cap"].get("final_url", ""), r["findings"],
+                                                  dict(device=device, requests=len(r["cap"]["requests"])))
             S.page_runs = runs
             S.page_findings = [f for r in runs for f in r["findings"]]
         if limited:
@@ -146,6 +151,9 @@ if (cap.get("status") or 0) in (401, 403, 429) or cap.get("nav_error"):
     ui.notice("This page blocked the automated browser",
               f"It answered {cap.get('nav_error') or 'HTTP ' + str(cap.get('status'))}. Some sites do this on purpose. Capture the page in your "
               "own browser with the Chrome extension and import it in the second tab.", "info")
+
+if run.get("run_id"):
+    ui.since_last_notice("page", cap.get("final_url", ""), run["run_id"], F, key="page_since")
 
 ui.metrics([("Requests", nw["total_requests"], "network calls"), ("Transferred", mb(nw["total_bytes"]), "compressed size"),
             ("Third-party hosts", len(nw["third_party_hosts"]), "other domains contacted"),

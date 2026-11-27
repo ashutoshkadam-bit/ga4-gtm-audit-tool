@@ -1,4 +1,4 @@
-﻿"""Google sign-in. Two modes, chosen automatically:
+"""Google sign-in. Two modes, chosen automatically:
 
 LOCAL (default)  Each person runs the tool on their own computer. A browser window opens for Google sign-in
                  and the login is saved in their user folder.

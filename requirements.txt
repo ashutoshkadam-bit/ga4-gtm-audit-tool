@@ -9,3 +9,5 @@ google-auth-oauthlib==1.5.0
 requests==2.34.2
 playwright==1.65.2
 cryptography==50.0.2
+sqlalchemy==2.1.9
+psycopg[binary]==3.3.9

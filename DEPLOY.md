@@ -42,6 +42,19 @@ shared client above is optional. For their own client to work they register this
 `GGA_STATE_KEY` (any long random string) is an optional extra secret used to protect the sign-in redirect; without it the shared client
 secret is used, and without either the key lasts only until the server restarts.
 
+## Keeping history on a hosted copy (recommended)
+
+Without a database, a hosted copy remembers history only for the current visit, because free hosts have no permanent disk. To keep it:
+
+1. Create a PostgreSQL database. Free options include **Neon** and **Supabase**; on Google Cloud use **Cloud SQL**.
+2. Copy its connection string, for example `postgresql://user:password@host/dbname?sslmode=require`.
+3. Set it as a secret named `GGA_DATABASE_URL` (Streamlit secrets or an environment variable). Never commit it to git.
+4. Restart the app. The tables are created automatically. The History page now shows "Saved in: your database".
+
+Each signed-in person sees only their own runs. Optional: `GGA_HISTORY_KEEP` sets how many runs are kept per person (default 60).
+If the database cannot be reached, the tool does not fail: it falls back to session-only history and says so on the History page.
+Backups, retention and access control are your database provider's job. The tables hold finding text, which can include client names.
+
 ## 3. Pick a host
 
 ### A. Google Cloud Run (recommended)

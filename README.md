@@ -95,6 +95,23 @@ Most books and standards are copyrighted, so the tool links to them instead of c
 none because no authoritative page was found. Limits and defaults change, so confirm against the linked page before acting.
 The content lives in `gga/knowledge.py` and `gga/frameworks.py` and is easy to extend.
 
+## History: compare audits over time
+
+Every audit (GA4 and GTM audit, Page audit) is saved automatically. Open **History** to:
+
+- **Compare** any two saved runs, or a saved run against a `findings.csv` you downloaded earlier. You see new problems, things that got worse,
+  fixed items, improvements, what is still open, and each item's health score before and after.
+- **Trends:** fail and warn counts per run as a chart, plus the problems that stay open run after run.
+- **Saved runs:** download, delete one or delete everything. The oldest runs are removed automatically (60 per person by default,
+  set `GGA_HISTORY_KEEP` to change it).
+
+Only items that appear in both runs are compared check by check, so choosing different accounts in two runs does not create false
+"fixed" or "new problem" results.
+
+Where it is stored: on your own computer, a file in your user folder; on a hosted copy, a PostgreSQL database when `GGA_DATABASE_URL` is set
+(see DEPLOY.md), otherwise only for the current visit. Each person sees only their own runs. Saved runs contain finding text, which can
+include account, container and website names, so treat the database as client data.
+
 ## Live site check (optional)
 
 Section 4 of the tool compares what your **websites really load** with what Google Analytics and Tag Manager say.

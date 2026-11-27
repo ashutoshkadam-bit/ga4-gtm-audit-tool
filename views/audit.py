@@ -78,6 +78,7 @@ if "ga4_rows" in S:
             opt_data = st.checkbox("GA4 data checks (last N days)", True, help="Event volume, key events firing, unassigned traffic. Slower.")
             opt_gtm = st.checkbox("GTM container checks", True)
             opt_cross = st.checkbox("Cross-check GTM GA4 IDs against all my GA4 properties", True)
+            opt_save = st.checkbox("Save this audit to history", True, help="Lets you compare it with later runs on the History page.")
         with o2:
             days = st.number_input("Data window (days)", 7, 365, 30)
             unassigned = st.number_input("Warn when Unassigned traffic is above (%)", 1, 100, 10)
@@ -110,6 +111,11 @@ if "ga4_rows" in S:
                          seconds=(datetime.datetime.now() - t0).seconds)
         log.event("audit_run", ga4=len(ga4_pick), gtm=len(gtm_pick), findings=len(findings), seconds=S.results["seconds"],
                   user=log.who(S.get("email", "")))
+        S.pop("history_notice", None)
+        if opt_save and findings:
+            scope_text = S.results["meta"]["scope_text"]
+            rid = ui.save_history("audit", "GA4 & GTM audit", scope_text, findings, dict(days=days, ga4=len(ga4_pick), gtm=len(gtm_pick)))
+            S.history_notice = dict(kind="audit", scope_text=scope_text, run_id=rid)
 
 # ---------------------------------------------------------------- 3. results
 if "results" in S:
@@ -117,6 +123,9 @@ if "results" in S:
     # live site check and page audit results join the reports when present
     F = R["findings"] + S.get("site_findings", []) + S.get("page_findings", [])
     st.header("3. Results")
+    hn = S.get("history_notice")
+    if hn and hn.get("run_id"):
+        ui.since_last_notice(hn["kind"], hn["scope_text"], hn["run_id"], R["findings"], key="audit_since")
     tot = collections.Counter(r["status"] for r in F)
     ents = {(r["scope"], r["entity_id"] or r["entity"]) for r in F}
     ui.metrics([("Audited", len(ents), "properties and containers"), ("Fail", tot["FAIL"], "broken or missing"),

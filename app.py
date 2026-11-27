@@ -30,6 +30,7 @@ if auth.is_web() and not S.get("creds") and ("code" in st.query_params or "error
 pages = [
     st.Page("views/audit.py", title="GA4 & GTM audit", icon=":material/fact_check:", default=True),
     st.Page("views/page_audit.py", title="Page audit", icon=":material/travel_explore:", url_path="page-audit"),
+    st.Page("views/history.py", title="History", icon=":material/history:", url_path="history"),
     st.Page("views/frameworks.py", title="Guides", icon=":material/menu_book:", url_path="guides"),
     st.Page("views/profile.py", title="Profile", icon=":material/account_circle:", url_path="profile"),
 ]
