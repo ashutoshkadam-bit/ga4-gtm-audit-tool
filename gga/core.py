@@ -314,6 +314,22 @@ def run_audit(auditor, ga4_props, gtm_containers, known_ids=None, progress=None,
     return findings, inventory
 
 
+def web_stream_urls(auditor, ga4_rows, progress=None):
+    """Website addresses (default URLs of web data streams) of the given GA4 properties, without duplicates."""
+    urls = []
+    for i, p in enumerate(ga4_rows, 1):
+        if progress:
+            progress(i, len(ga4_rows), p["property"])
+        try:
+            for s in paged(auditor.admin.properties().dataStreams().list, "dataStreams", parent=p["property_name"]):
+                u = s.get("webStreamData", {}).get("defaultUri")
+                if u and u not in urls:
+                    urls.append(u)
+        except Exception:  # noqa: BLE001
+            pass
+    return urls
+
+
 def all_ga4_measurement_ids(auditor, ga4_rows, progress=None):
     """Measurement IDs of every accessible GA4 web stream (used by the cross-check)."""
     ids = set()

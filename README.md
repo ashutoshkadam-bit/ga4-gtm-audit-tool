@@ -42,6 +42,20 @@ Statuses: **FAIL** is broken or missing, **WARN** is a risk or best-practice gap
 for reference, **PASS** is fine, **ERROR** means a check could not run (usually a permission).
 Health score = 100 minus 20 per fail and 5 per warn or error.
 
+## Live site check (optional)
+
+Section 4 of the tool compares what your **websites really load** with what Google Analytics and Tag Manager say.
+Paste website addresses (or click **Fill from my selected GA4 accounts** to use each GA4 web stream's address) and run it.
+For each page it reports:
+
+- the Tag Manager containers on the page, whether they are in your accounts, and whether there is more than one
+- the GA4 measurement IDs the page and its published containers fire, and whether each belongs to a property you can open
+- the same GA4 ID loaded twice (in the page and inside GTM), which can double count
+- leftover Universal Analytics IDs, plus Google Ads and Meta pixel IDs for reference
+
+It reads public pages only, with plain HTTP requests. It cannot see tags injected by other scripts or test cookie
+consent behaviour. Addresses on private or internal networks are refused. Results are included in the Excel and HTML reports.
+
 ## What it cannot see
 
 - GA4 internal traffic filters (Google does not expose them through the API). Verify those by hand.

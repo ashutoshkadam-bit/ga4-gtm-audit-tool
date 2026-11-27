@@ -5,7 +5,7 @@ import datetime
 import pandas as pd
 import streamlit as st
 
-from gga import auth, core, report
+from gga import auth, core, report, site
 
 st.set_page_config(page_title="GA4 & GTM Audit", page_icon=":mag:", layout="wide")
 S = st.session_state
@@ -176,7 +176,7 @@ if "ga4_rows" in S:
 # ---------------------------------------------------------------- 3. results
 if "results" in S:
     R = S.results
-    F = R["findings"]
+    F = R["findings"] + S.get("site_findings", [])  # live site check results join the reports when present
     st.header("3. Results")
     tot = collections.Counter(r["status"] for r in F)
     ents = {(r["scope"], r["entity_id"] or r["entity"]) for r in F}
@@ -221,4 +221,51 @@ if "results" in S:
         d2.download_button("HTML report (share or print to PDF)", report.to_html(F, R["meta"]), f"ga4-gtm-audit-{stamp}.html", "text/html")
         d3.download_button("All findings (.csv)", report.to_csv(F, report.COLS), f"ga4-gtm-audit-{stamp}.csv", "text/csv")
         st.caption("The HTML report is a single file with no external links. Open it in a browser and use Print > Save as PDF.")
+
+# ---------------------------------------------------------------- 4. live site check
+if "ga4_rows" in S:
+    st.header("4. Live site check (optional)")
+    st.write("Compares what your websites **really load** with what Google Analytics and Tag Manager say. It finds the "
+             "Tag Manager containers and GA4 / Universal Analytics IDs on each page, reads what the published containers "
+             "fire, and flags IDs that are not yours, double-loaded tags and leftover Universal Analytics. "
+             "It reads public pages only. It cannot see tags injected by other scripts or test cookie consent.")
+    if "site_fill" in S:
+        S.site_urls = S.pop("site_fill")
+    f1, f2 = st.columns([3, 1])
+    with f2:
+        if st.button("Fill from my selected GA4 accounts", help="Uses the website address of each GA4 web stream in the accounts chosen above."):
+            bar = st.progress(0.0, "Reading GA4 web streams...")
+            auditor_for_urls = core.Auditor(creds, dict(ga4_settings=False, ga4_data=False))
+            urls_found = core.web_stream_urls(auditor_for_urls, ga4_pick, lambda d, n, name: bar.progress(d / n, f"{d}/{n}  {name}"))
+            S.site_fill = "\n".join(urls_found[:site.MAX_URLS])
+            S.pop("site_fill_note", None)
+            if len(urls_found) > site.MAX_URLS:
+                S.site_fill_note = f"{len(urls_found)} addresses found. Only the first {site.MAX_URLS} are filled in; run the rest in another batch."
+            st.rerun()
+    with f1:
+        st.text_area(f"Website addresses, one per line (up to {site.MAX_URLS})", key="site_urls", height=160,
+                     placeholder="https://www.example.com\nhttps://shop.example.com/landing")
+    if S.get("site_fill_note"):
+        st.info(S.site_fill_note)
+    urls = [u for u in S.get("site_urls", "").splitlines() if u.strip()]
+    if st.button("Run live site check", type="primary", disabled=not urls):
+        known_c = {r["public_id"] for r in S.gtm_rows}
+        if "known_ids" not in S:
+            bar = st.progress(0.0, "Collecting your GA4 measurement IDs for the comparison (once per session)...")
+            S.known_ids = core.all_ga4_measurement_ids(core.Auditor(creds, dict(ga4_settings=False, ga4_data=False)), S.ga4_rows,
+                                                       lambda d, n, name: bar.progress(d / n, f"IDs {d}/{n}: {name}"))
+            bar.empty()
+        bar = st.progress(0.0, "Checking websites...")
+        S.site_findings = site.run_site_check(urls, known_c, S.known_ids,
+                                              progress=lambda d, n, u: bar.progress(d / n, f"{d}/{n}  {u}"))
+        bar.empty()
+        st.rerun()
+    SF = S.get("site_findings")
+    if SF:
+        tot_s = collections.Counter(r["status"] for r in SF)
+        st.write(f"**{len({r['entity'] for r in SF})} pages checked:** {tot_s['FAIL']} fail, {tot_s['WARN']} warn, {tot_s['PASS']} pass. "
+                 "These results are also included in the Excel and HTML reports above.")
+        view = pd.DataFrame([r for r in SF if r["status"] in ("FAIL", "WARN")] or SF)[["entity", "check", "status", "detail"]]
+        st.dataframe(view, width="stretch", hide_index=True)
+        st.download_button("Live site check (.csv)", report.to_csv(SF, report.COLS), "live-site-check.csv", "text/csv")
 
