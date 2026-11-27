@@ -35,6 +35,13 @@ organization. Otherwise add every user as a **Test user**. See SETUP_ADMIN.md.
 Set them as environment variables (or, on Streamlit Community Cloud, as secrets). **Never commit them to git.**
 This repository is public.
 
+### Optional: people bring their own client or token
+
+Visitors can also sign in with **their own** OAuth client (their client ID and secret) or a pasted token on the Profile page, so the
+shared client above is optional. For their own client to work they register this site's address (`GGA_REDIRECT_URI`) as a redirect URI.
+`GGA_STATE_KEY` (any long random string) is an optional extra secret used to protect the sign-in redirect; without it the shared client
+secret is used, and without either the key lasts only until the server restarts.
+
 ## 3. Pick a host
 
 ### A. Google Cloud Run (recommended)
@@ -103,10 +110,10 @@ set GGA_REDIRECT_URI=http://localhost:8501
 The **Page audit** page drives a real headless Chromium browser. That works out of the box on your own computer and with the
 included `Dockerfile` (Cloud Run or any Docker host), which installs the browser and its system libraries.
 
-On **Streamlit Community Cloud** the browser needs extra system libraries. `packages.txt.example` lists the usual ones. To try it,
-rename it to `packages.txt` and redeploy. This is untested on Community Cloud, and a wrong package name there makes the whole deploy
-fail, so keep the original file handy. If it does not work, use Cloud Run for the Page audit, or let people capture pages with the
-Chrome extension and import the file (that needs no browser on the server).
+On **Streamlit Community Cloud** the repository's `packages.txt` installs the system `chromium` package, and the tool starts it through
+Playwright. If a server has no browser at all, the Page audit does not show an error: it runs a **limited check** (page HTML and each
+Tag Manager container's published script) and points to the Chrome extension, which needs no browser on the server. The **Browser status**
+tab on the Page audit page tells you which situation you are in. If a bad `packages.txt` ever blocks a deploy, delete the file and redeploy.
 
 Because the server opens whatever address a signed-in user types, keep `GGA_ALLOWED_DOMAIN` set. The tool refuses addresses on
 private or internal networks, including requests the page itself makes.

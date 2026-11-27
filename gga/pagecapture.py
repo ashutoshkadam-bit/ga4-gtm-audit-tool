@@ -10,7 +10,9 @@ a hosted copy cannot be aimed at internal services. Pages are not interacted wit
 which clicks a visible "accept" button.
 """
 import datetime
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -86,28 +88,63 @@ CONSENT_TEXT = re.compile(r"^\s*(accept( all| and continue| cookies)?|allow( all
                           r"accept & continue|yes,? i agree|consent)\s*$", re.I)
 
 
+class BrowserUnavailable(RuntimeError):
+    """No browser could be started on this machine. The message is plain language and safe to show."""
+
+
+_install_tried = {"done": False}
+_LAUNCH_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-blink-features=AutomationControlled"]
+
+
+def find_system_browser():
+    """A Chromium-based browser already installed on this machine (used when Playwright's own is missing)."""
+    cands = [os.environ.get("GGA_BROWSER_PATH", "")]
+    cands += [shutil.which(n) or "" for n in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "chrome", "msedge")]
+    cands += [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+              r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", "/usr/bin/chromium", "/usr/bin/chromium-browser",
+              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+    return next((c for c in cands if c and os.path.exists(c)), "")
+
+
+def launch_browser(p):
+    """Starts a headless Chromium. Order: Playwright's own build, a browser already on the system, then a one-time install.
+    Raises BrowserUnavailable with a plain message if none works."""
+    last = ""
+    if os.environ.get("GGA_TEST_NO_BROWSER"):  # lets tests rehearse a server without a browser
+        raise BrowserUnavailable("A browser is not available on this server, so the full page audit cannot run here.")
+    for attempt in range(2):
+        try:
+            return p.chromium.launch(headless=True, args=_LAUNCH_ARGS)
+        except Exception as e:  # noqa: BLE001
+            last = str(e)
+        path = find_system_browser()
+        if path:
+            try:
+                return p.chromium.launch(executable_path=path, headless=True, args=_LAUNCH_ARGS)
+            except Exception as e:  # noqa: BLE001
+                last = str(e)
+        if attempt == 0 and not _install_tried["done"] and ("Executable doesn't exist" in last or "playwright install" in last):
+            _install_tried["done"] = True
+            try:
+                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], capture_output=True, timeout=600)
+            except Exception:  # noqa: BLE001
+                break
+            continue
+        break
+    raise BrowserUnavailable("A browser is not available on this server, so the full page audit cannot run here.")
+
+
 def ensure_browser():
-    """Raises RuntimeError with a plain message if the browser engine is not ready. Tries to install Chromium once."""
+    """Returns a short description of the browser that will be used. Raises BrowserUnavailable with a plain message."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        raise RuntimeError("The browser engine (Playwright) is not installed. Run: pip install playwright, then "
-                           "python -m playwright install chromium")
-    def can_launch():
-        with sync_playwright() as p:
-            b = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
-            b.close()
-    try:
-        can_launch()
-        return
-    except Exception as first:  # noqa: BLE001
-        if "Executable doesn't exist" not in str(first) and "playwright install" not in str(first):
-            raise RuntimeError(f"The browser could not start: {str(first)[:300]}")
-    subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False, capture_output=True, timeout=900)
-    try:
-        can_launch()
-    except Exception as e:  # noqa: BLE001
-        raise RuntimeError(f"The browser could not be installed or started: {str(e)[:300]}")
+        raise BrowserUnavailable("The browser engine (Playwright) is not installed on this copy of the tool.")
+    with sync_playwright() as p:
+        b = launch_browser(p)
+        v = b.version
+        b.close()
+    return f"Chromium {v}"
 
 
 def _globals_to_probe():
@@ -133,8 +170,7 @@ def capture(url, device="desktop", wait_s=8, scroll=True, consent="none", timeou
     host_ok = {}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage",
-                                                         "--disable-blink-features=AutomationControlled"])
+        browser = launch_browser(p)
         kw = dict(locale="en-US", timezone_id="Asia/Kolkata")
         if device == "mobile":
             kw.update(p.devices["Pixel 7"])

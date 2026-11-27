@@ -2,13 +2,11 @@
 import pandas as pd
 import streamlit as st
 
-from gga import frameworks, knowledge
+from gga import frameworks, knowledge, ui
 
-st.set_page_config(page_title="Frameworks and fix guides", page_icon=":books:", layout="wide")
-st.title("Frameworks and fix guides")
-st.caption("Summaries in our own words, with links to the original public sources. Most books and standards are "
-           "copyrighted, so we link to them instead of copying them. Nothing here is legal advice. Limits and "
-           "defaults change, so confirm against the linked page before acting.")
+ui.page_title("Frameworks and fix guides", "Summaries in our own words, with links to the original public sources. Most books and standards "
+              "are copyrighted, so we link to them instead of copying them. Nothing here is legal advice. Limits and defaults change, "
+              "so confirm against the linked page before acting.")
 
 tab1, tab2 = st.tabs(["Frameworks library", "Fix guide for every check"])
 

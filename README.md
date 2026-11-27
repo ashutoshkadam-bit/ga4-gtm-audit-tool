@@ -4,6 +4,22 @@ Audit any of your Google Analytics 4 properties and Google Tag Manager container
 You sign in with **your own Google account**, so you only audit what you already have access to.
 The tool is **read-only**: it never changes anything in Analytics or Tag Manager.
 
+## Interface
+
+A top navigation bar (GA4 & GTM audit, Page audit, Guides, Profile) and a profile menu at the top right. The look uses
+[shadcn/ui](https://ui.shadcn.com/) components (MIT licence) through the `streamlit-shadcn-ui` package, with a light and dark theme that
+follows your system. The first screen after sign-in is the audit; everything else is one click away.
+
+## Profile: connect your own account
+
+Open **Profile** (or the profile menu) to connect a Google account in the way that suits you. Nothing is stored beyond your browser session
+on a hosted copy, and the tool stays read-only.
+
+- **Google sign-in:** the shared sign-in the admin set up.
+- **My own OAuth client:** type your own client ID and client secret and sign in with them, so your own quotas and test-user list apply.
+  On a hosted copy, register the redirect address shown on that tab on your client.
+- **Paste a token:** paste an access token (about an hour) or a refresh token with its client ID and secret, and start straight away.
+
 ## Start it (first time takes about 2 minutes)
 
 1. Install Python 3.10 or newer from https://www.python.org/downloads/ if you do not have it.

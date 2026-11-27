@@ -6,47 +6,36 @@ import json
 import pandas as pd
 import streamlit as st
 
-from gga import auth, knowledge, pageanalysis, report, site, techdb
+from gga import auth, knowledge, pageanalysis, pagecapture, report, site, techdb, ui
 
-st.set_page_config(page_title="Page audit", page_icon=":mag_right:", layout="wide")
 S = st.session_state
 WEB = auth.is_web()
+if WEB:
+    ui.require_login("the page audit")  # on a hosted copy only signed-in staff may open pages from the server
 
-st.title("Page audit")
-st.write("Load any web page in a real browser and see **everything it does**: network calls, console messages, tags and "
-         "hits, Tag Manager, GA4, Adobe and other vendors, how each tag loads, cookies, CDN, speed and security headers.")
-
-if WEB and not S.get("creds"):
-    st.warning("Please sign in on the main page first, then come back here.")
-    st.stop()
+ui.page_title("Page audit", "Load any web page in a real browser and see everything it does: network calls, console, tags and hits, "
+              "Tag Manager, GA4, Adobe and other vendors, how each tag loads, cookies, CDN, speed and security headers.")
 
 
 def mb(n):
     return f"{(n or 0) / 1e6:.2f} MB" if (n or 0) >= 1e6 else f"{(n or 0) / 1e3:.0f} KB"
 
 
-# ------------------------------------------------------------------------------------------------ inputs
-with st.sidebar:
-    st.markdown("**Browser engine**")
-    try:
-        import playwright  # noqa: F401
-        have_pw = True
-    except ImportError:
-        have_pw = False
-    if have_pw:
-        if st.button("Check or prepare the browser"):
-            from gga import pagecapture
-            with st.spinner("Preparing the browser. The first time can take a minute or two..."):
-                try:
-                    pagecapture.ensure_browser()
-                    st.success("The browser is ready.")
-                except RuntimeError as e:
-                    st.error(str(e))
-    else:
-        st.error("The browser engine (Playwright) is not installed on this copy of the tool. Use the Chrome extension "
-                 "import below, or install it: `pip install playwright` then `python -m playwright install chromium`.")
+try:
+    import playwright  # noqa: F401
+    HAVE_PW = True
+except ImportError:
+    HAVE_PW = False
 
-tab_run, tab_import = st.tabs(["Audit a URL", "Import from the Chrome extension"])
+
+def limited_check(u):
+    """No browser available: read the page HTML and the published GTM container instead (IDs, GTM, GA4, Universal Analytics)."""
+    known_c = {r["public_id"] for r in S.get("gtm_rows", [])} or None
+    return site.scan_url(u, known_containers=known_c, known_ga4=S.get("known_ids"))
+
+
+# ------------------------------------------------------------------------------------------------ inputs
+tab_run, tab_import, tab_status = st.tabs(["Audit a URL", "Import from the Chrome extension", "Browser status"])
 
 with tab_run:
     urls_text = st.text_area("Page addresses, one per line (up to 5 per run)", key="pa_urls", height=110,
@@ -60,13 +49,14 @@ with tab_run:
     allow_private = False
     if not WEB:
         allow_private = st.checkbox("Allow local or internal addresses (this computer only)", False)
-    if st.button("Run page audit", type="primary", disabled=not (have_pw and urls_text.strip())):
-        from gga import pagecapture
+    if st.button("Run page audit", type="primary", disabled=not urls_text.strip()):
         urls = [u for u in urls_text.splitlines() if u.strip()][:5]
-        runs = []
+        runs, limited, skipped = [], [], []
         for u in urls:
             with st.status(f"Auditing {u}", expanded=True) as stat:
                 try:
+                    if not HAVE_PW:
+                        raise pagecapture.BrowserUnavailable("The browser engine is not installed on this copy of the tool.")
                     cap = pagecapture.capture(u, device=device, wait_s=wait_s, scroll=scroll,
                                               consent="accept" if consent else "none", allow_private=allow_private,
                                               progress=lambda m: stat.write(m))
@@ -74,15 +64,37 @@ with tab_run:
                     runs.append(dict(cap=cap, an=an, findings=pageanalysis.to_findings(cap, an)))
                     stat.update(label=f"Done: {u}", state="complete")
                 except site.BlockedAddress as e:
-                    stat.update(label=f"Refused: {u} ({e})", state="error")
-                except RuntimeError as e:
-                    stat.update(label=f"{u}: {e}", state="error")
+                    skipped.append((u, str(e)))
+                    stat.update(label=f"Skipped: {u}", state="complete")
+                    stat.write(f"This address is not allowed here: {e}.")
+                except pagecapture.BrowserUnavailable:
+                    stat.write("The full browser audit is not available on this server, so a limited check is running instead.")
+                    try:
+                        limited += limited_check(u)
+                        stat.update(label=f"Limited check done: {u}", state="complete")
+                    except Exception:  # noqa: BLE001
+                        stat.update(label=f"Could not check {u}", state="complete")
+                        stat.write("The page could not be read. Check the address and try again, or use the Chrome extension.")
                 except Exception as e:  # noqa: BLE001
-                    stat.update(label=f"{u}: {str(e)[:200]}", state="error")
+                    stat.update(label=f"Could not complete {u}", state="complete")
+                    stat.write("Something unexpected stopped this audit. Your other results are not affected. "
+                               "Try again, or use the Chrome extension for this page.")
+                    with st.expander("Technical details"):
+                        st.code(f"{type(e).__name__}: {str(e)[:400]}")
         if runs:
             S.page_runs = runs
             S.page_findings = [f for r in runs for f in r["findings"]]
+        if limited:
+            S.limited_findings = limited
+        if runs or limited:
             st.rerun()
+    if S.get("limited_findings"):
+        ui.notice("Limited check (no browser on this server)",
+                  "These results come from reading the page HTML and each Tag Manager container's published script. For the full audit "
+                  "(network calls, console, cookies, speed), run the tool on your own computer or capture the page with the Chrome extension "
+                  "and import it in the next tab.", "info")
+        lf = pd.DataFrame(S.limited_findings)[["entity", "check", "status", "detail"]]
+        st.dataframe(lf, width="stretch", hide_index=True)
 
 with tab_import:
     st.write("Audit a page in **your own browser** with the Chrome extension (it sees logged-in pages and sites that block "
@@ -91,15 +103,29 @@ with tab_import:
     if up is not None:
         try:
             cap = json.load(up)
-            if cap.get("schema") != "gga-capture-1":
-                st.error("This file is not a capture from the Page audit tool or its Chrome extension.")
+            if not isinstance(cap, dict) or cap.get("schema") != "gga-capture-1":
+                ui.notice("Not a capture file", "This file is not a capture from the Page audit tool or its Chrome extension.", "warn")
             else:
                 an = pageanalysis.analyze(cap)
                 S.page_runs = [dict(cap=cap, an=an, findings=pageanalysis.to_findings(cap, an))]
                 S.page_findings = S.page_runs[0]["findings"]
                 st.success("Capture imported.")
-        except (ValueError, KeyError) as e:
-            st.error(f"Could not read the file: {e}")
+        except (ValueError, KeyError, TypeError):
+            ui.notice("Could not read the file", "The file is damaged or is not a capture. Record it again with the extension.", "warn")
+
+with tab_status:
+    st.write("The full page audit needs a browser on the machine that runs this tool. Check it here.")
+    if st.button("Check the browser on this server"):
+        with st.spinner("Checking. The first time on a new server can take a minute while a browser is set up..."):
+            try:
+                st.success("Ready: " + pagecapture.ensure_browser())
+            except pagecapture.BrowserUnavailable as e:
+                ui.notice("No browser on this server", f"{e} The tool will run a limited check instead, and the Chrome extension import "
+                          "works everywhere.", "info")
+            except Exception:  # noqa: BLE001
+                ui.notice("The browser check could not finish", "Try again in a moment.", "info")
+    import platform
+    st.caption(f"Server: {platform.system()} {platform.machine()}, Python {platform.python_version()}")
 
 # ------------------------------------------------------------------------------------------------ results
 runs = S.get("page_runs")
@@ -114,16 +140,15 @@ reqs = cap.get("requests", [])
 nw = an["network"]
 
 if (cap.get("status") or 0) in (401, 403, 429) or cap.get("nav_error"):
-    st.error(f"The page could not be audited ({cap.get('nav_error') or 'HTTP ' + str(cap.get('status'))}). Some sites block automated "
-             "browsers. Use the Chrome extension to capture the page in your own browser and import it here.")
+    ui.notice("This page blocked the automated browser",
+              f"It answered {cap.get('nav_error') or 'HTTP ' + str(cap.get('status'))}. Some sites do this on purpose. Capture the page in your "
+              "own browser with the Chrome extension and import it in the second tab.", "info")
 
-m = st.columns(6)
-m[0].metric("Requests", nw["total_requests"])
-m[1].metric("Transferred", mb(nw["total_bytes"]))
-m[2].metric("Third-party hosts", len(nw["third_party_hosts"]))
-m[3].metric("Console errors", sum(1 for c in cap.get("console", []) if c["type"] == "error") + len(cap.get("errors", [])))
-m[4].metric("Cookies", len(cap.get("cookies", [])))
-m[5].metric("Source", "Extension" if cap.get("source") == "extension" else "Headless browser")
+ui.metrics([("Requests", nw["total_requests"], "network calls"), ("Transferred", mb(nw["total_bytes"]), "compressed size"),
+            ("Third-party hosts", len(nw["third_party_hosts"]), "other domains contacted"),
+            ("Console errors", sum(1 for c in cap.get("console", []) if c["type"] == "error") + len(cap.get("errors", [])), "from the page"),
+            ("Cookies", len(cap.get("cookies", [])), "set during the visit"),
+            ("Source", "Extension" if cap.get("source") == "extension" else "Browser", "how it was captured")], key="pa_kpi")
 
 (t_over, t_tech, t_tags, t_net, t_con, t_ck, t_perf, t_sec, t_find, t_dl) = st.tabs(
     ["Overview", "Technologies", "Tags and hits", "Network", "Console", "Cookies and storage", "Performance",

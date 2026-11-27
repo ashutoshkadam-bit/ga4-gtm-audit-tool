@@ -1,10 +1,26 @@
 [server]
 headless = true
-# Behind a hosting proxy (Cloud Run, Streamlit Cloud) these two are handled by the platform.
 enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
 
+# Modern, calm look (shadcn-style zinc and indigo). Light and dark follow the visitor's system setting.
 [theme]
-primaryColor = "#c0392b"
+primaryColor = "#4f46e5"
+baseRadius = "0.6rem"
+font = "sans serif"
+showWidgetBorder = true
+
+[theme.light]
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f4f5"
+textColor = "#09090b"
+borderColor = "#e4e4e7"
+
+[theme.dark]
+backgroundColor = "#09090b"
+secondaryBackgroundColor = "#18181b"
+textColor = "#fafafa"
+borderColor = "#27272a"
+primaryColor = "#818cf8"
