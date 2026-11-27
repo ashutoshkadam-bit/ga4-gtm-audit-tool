@@ -134,7 +134,9 @@ if "results" in S:
     if tot["ERROR"]:
         st.warning("Some checks could not run (usually a permission or API limit on that item). "
                    "Filter the Findings tab by status ERROR to see which.")
-    t1, t2, t3, t4, t6, t5 = st.tabs(["By check", "By account", "Items by health", "All findings", "How to fix", "Download"])
+    t0s, t1, t2, t3, t4, t6, t5 = st.tabs(["Summary", "By check", "By account", "Items by health", "All findings", "How to fix", "Download"])
+    with t0s:
+        st.markdown(report.summary_markdown(report.executive_summary(F)))
     with t6:
         guides = knowledge.for_findings(F)
         st.caption("Why each problem matters and how to fix it, worst first, with a link to the official source. "

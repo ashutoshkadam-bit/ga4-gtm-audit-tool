@@ -46,6 +46,87 @@ def by_account(findings):
     return rows
 
 
+def rating(score):
+    return "Good" if score >= 85 else "Fair" if score >= 70 else "Poor" if score >= 50 else "Critical"
+
+
+def _first_sentence(text):
+    text = (text or "").strip()
+    cut = text.find(". ")
+    return text[:cut + 1] if 0 < cut < 220 else text[:220]
+
+
+def executive_summary(findings, top=8):
+    """A plain-language overview of a whole audit: overall health, what to fix first, where, and what could not be checked."""
+    from . import knowledge
+    items = summarize(findings)
+    tot = collections.Counter(r["status"] for r in findings)
+    if not items:
+        return dict(empty=True)
+    avg = round(sum(i["score"] for i in items) / len(items))
+    scopes = collections.Counter(i["scope"] for i in items)
+    accounts = {(i["scope"], i["account"]) for i in items}
+    dist = dict(healthy=sum(i["score"] >= 85 for i in items), attention=sum(50 <= i["score"] < 85 for i in items),
+                critical=sum(i["score"] < 50 for i in items))
+    guides = {g["check"]: g for g in knowledge.for_findings(findings)}
+    affected = collections.defaultdict(lambda: collections.defaultdict(set))
+    for r in findings:
+        if r["status"] in ("FAIL", "WARN", "ERROR"):
+            affected[r["check"]][r["status"]].add(r["entity_id"] or r["entity"])
+    problems = []
+    for chk, st_ in affected.items():
+        g = guides.get(chk, {})
+        problems.append(dict(check=chk, fails=len(st_["FAIL"]), warns=len(st_["WARN"]), errors=len(st_["ERROR"]),
+                             items=len(set().union(*st_.values())), why=_first_sentence(g.get("why", "")), fix=g.get("fix", "")))
+    problems.sort(key=lambda p: (-(p["fails"] * 3 + p["warns"] + p["errors"] * 0.5), p["check"]))
+    fix_first = [p for p in problems if p["fails"]][:top]
+    next_up = [p for p in problems if not p["fails"] and p["warns"]][:top]
+    could_not = [p for p in problems if p["errors"]][:top]
+    accts = by_account(findings)[:5]
+    worst = [i for i in items if i["score"] < 85][:5]
+    if dist["critical"]:
+        headline = (f"{dist['critical']} of {len(items)} audited items are in critical shape. Start with the failures listed under "
+                    "Fix first; they are broken or missing settings, not just best-practice gaps.")
+    elif tot["FAIL"]:
+        headline = f"No item is critical, but {tot['FAIL']} checks failed across {len(fix_first)} kinds of problem. Fix those first."
+    elif tot["WARN"]:
+        headline = f"Nothing is broken. {tot['WARN']} warnings are risks or best-practice gaps worth scheduling."
+    else:
+        headline = "No failures or warnings were found."
+    return dict(empty=False, average=avg, rating=rating(avg), headline=headline, items=len(items), accounts=len(accounts),
+                scopes=dict(scopes), checks=len(findings), totals={k: tot[k] for k in ORDER}, distribution=dist,
+                fix_first=fix_first, next_up=next_up, could_not=could_not, accounts_top=accts, worst_items=worst)
+
+
+def summary_markdown(s):
+    """The executive summary as Markdown (used on screen)."""
+    if s.get("empty"):
+        return "No findings to summarise."
+    t = s["totals"]
+    scope_txt = ", ".join(f"{n} {k}" for k, n in s["scopes"].items())
+    out = [f"**{s['headline']}**", "",
+           f"Overall health **{s['average']}/100 ({s['rating']})** across {s['items']} items ({scope_txt}) in {s['accounts']} accounts. "
+           f"{s['checks']} checks ran: {t['FAIL']} fail, {t['WARN']} warn, {t['ERROR']} could not run, {t['PASS']} passed. "
+           f"{s['distribution']['healthy']} items are healthy (85+), {s['distribution']['attention']} need attention, "
+           f"{s['distribution']['critical']} are critical (under 50)."]
+
+    def block(title, rows, fmt):
+        if rows:
+            out.extend(["", f"#### {title}"] + [fmt(p) for p in rows])
+
+    block("Fix first (failures)", s["fix_first"], lambda p: f"- **{p['check']}**: {p['fails']} failing"
+          + (f", {p['warns']} warning" if p["warns"] else "") + f" ({p['items']} items). {p['why']}")
+    block("Schedule next (warnings)", s["next_up"], lambda p: f"- **{p['check']}**: {p['warns']} items. {p['why']}")
+    block("Could not be checked", s["could_not"], lambda p: f"- **{p['check']}**: {p['errors']} items, usually a permission or API limit. Run these again.")
+    block("Accounts needing most attention", s["accounts_top"],
+          lambda a: f"- **{a['account']}** ({a['scope']}): {a['FAIL']} fail, {a['WARN']} warn across {a['entities']} items")
+    block("Lowest-scoring items", s["worst_items"],
+          lambda i: f"- **{i['entity']}** ({i['scope']}, {i['account']}): {i['score']}/100, {i['FAIL']} fail, {i['WARN']} warn")
+    out.extend(["", "*Scope and limits: the audit is read-only, uses the live published GTM version and recent GA4 data, and cannot read "
+                "GA4 internal traffic filters. The How to fix tab has the steps for each problem.*"])
+    return "\n".join(out)
+
+
 def to_csv(rows, cols=None):
     buf = io.StringIO()
     w = csv.DictWriter(buf, cols or list(rows[0].keys()) if rows else [], extrasaction="ignore")
@@ -82,7 +163,16 @@ def to_xlsx(findings, inventory):
                     row[0].fill = PatternFill("solid", fgColor=COLORS[v][1:])
         return ws
 
-    sheet("Summary", summarize(findings), ["scope", "account", "entity", "entity_id", "score", "FAIL", "WARN", "ERROR", "PASS", "INFO"], True)
+    es = executive_summary(findings)
+    rows = []
+    if not es.get("empty"):
+        rows = [dict(section="Overview", item=f"Health {es['average']}/100 ({es['rating']})", detail=es["headline"])]
+        for sec, key in (("Fix first", "fix_first"), ("Schedule next", "next_up"), ("Could not check", "could_not")):
+            rows += [dict(section=sec, item=p["check"], detail=f"{p['fails']} fail, {p['warns']} warn, {p['errors']} error ({p['items']} items). {p['why']}")
+                     for p in es[key]]
+        rows += [dict(section="Account", item=a["account"], detail=f"{a['FAIL']} fail, {a['WARN']} warn, {a['entities']} items") for a in es["accounts_top"]]
+    sheet("Executive summary", rows, ["section", "item", "detail"], True)
+    sheet("Items by health", summarize(findings), ["scope", "account", "entity", "entity_id", "score", "FAIL", "WARN", "ERROR", "PASS", "INFO"])
     sheet("By account", by_account(findings), ["scope", "account", "entities", "FAIL", "WARN", "ERROR"])
     sheet("By check", by_check(findings), ["scope", "check"] + ORDER)
     from . import knowledge
@@ -107,6 +197,26 @@ def _table(rows, cols, status_col=None):
             h += f"<td{style}>{v}</td>"
         h += "</tr>"
     return h + "</table>"
+
+
+def _summary_html(findings):
+    s = executive_summary(findings)
+    if s.get("empty"):
+        return "<p>No findings to summarise.</p>"
+    t = s["totals"]
+    h = (f"<p><b>{html.escape(s['headline'])}</b></p><p>Overall health <b>{s['average']}/100 ({s['rating']})</b> across {s['items']} items in "
+         f"{s['accounts']} accounts. {t['FAIL']} fail, {t['WARN']} warn, {t['ERROR']} could not run, {t['PASS']} passed. "
+         f"{s['distribution']['healthy']} healthy, {s['distribution']['attention']} need attention, {s['distribution']['critical']} critical.</p>")
+
+    def ul(title, rows, fmt):
+        return f"<h3>{title}</h3><ul>" + "".join(f"<li>{fmt(r)}</li>" for r in rows) + "</ul>" if rows else ""
+    e = html.escape
+    h += ul("Fix first (failures)", s["fix_first"], lambda p: f"<b>{e(p['check'])}</b>: {p['fails']} failing ({p['items']} items). {e(p['why'])}")
+    h += ul("Schedule next (warnings)", s["next_up"], lambda p: f"<b>{e(p['check'])}</b>: {p['warns']} items. {e(p['why'])}")
+    h += ul("Could not be checked", s["could_not"], lambda p: f"<b>{e(p['check'])}</b>: {p['errors']} items")
+    h += ul("Accounts needing most attention", s["accounts_top"], lambda a: f"<b>{e(a['account'])}</b> ({e(a['scope'])}): {a['FAIL']} fail, {a['WARN']} warn")
+    h += ul("Lowest-scoring items", s["worst_items"], lambda i: f"<b>{e(i['entity'])}</b> ({e(i['account'])}): {i['score']}/100")
+    return h
 
 
 def to_html(findings, meta):
@@ -146,6 +256,7 @@ details{{margin:6px 0}}summary{{cursor:pointer;font-weight:600;padding:4px 0}}sm
 <h1>{html.escape(meta.get('title', 'GA4 & GTM audit'))}</h1>
 <div class="meta">{datetime.date.today():%d %b %Y} · run by {html.escape(meta.get('user', ''))} · {html.escape(meta.get('scope_text', ''))}</div>
 <div class="kpis">{kpi}</div><p>{len(ents)} properties and containers audited, {len(findings)} checks run.</p>
+<h2>Executive summary</h2>{_summary_html(findings)}
 <h2>Results by check</h2>{_table(by_check(findings), ['scope', 'check'] + ORDER)}
 <h2>Results by account</h2>{_table(by_account(findings), ['scope', 'account', 'entities', 'FAIL', 'WARN', 'ERROR'])}
 <h2>Lowest health scores</h2>{_table(summarize(findings)[:25], ['scope', 'account', 'entity', 'entity_id', 'score', 'FAIL', 'WARN', 'ERROR'])}
